@@ -721,7 +721,7 @@ class YoutubeDL(object):
                 filename = encodeFilename(filename, True).decode(preferredencoding())
             return sanitize_path(filename)
         except ValueError as err:
-            self.report_error('Error in output template: ' + str(err) + ' (encoding: ' + repr(preferredencoding()) + ')')
+            self.report_error('Error in output template: ' + error_to_compat_str(err) + ' (encoding: ' + repr(preferredencoding()) + ')')
             return None
 
     def _match_entry(self, info_dict, incomplete):
@@ -1570,9 +1570,6 @@ class YoutubeDL(object):
         else:
             formats = info_dict['formats']
 
-        if not formats:
-            raise ExtractorError('No video formats found!')
-
         def is_wellformed(f):
             url = f.get('url')
             if not url:
@@ -1585,7 +1582,10 @@ class YoutubeDL(object):
             return True
 
         # Filter out malformed formats for better extraction robustness
-        formats = list(filter(is_wellformed, formats))
+        formats = list(filter(is_wellformed, formats or []))
+
+        if not formats:
+            raise ExtractorError('No video formats found!')
 
         formats_dict = {}
 
@@ -1779,10 +1779,9 @@ class YoutubeDL(object):
 
         assert info_dict.get('_type', 'video') == 'video'
 
-        max_downloads = self.params.get('max_downloads')
-        if max_downloads is not None:
-            if self._num_downloads >= int(max_downloads):
-                raise MaxDownloadsReached()
+        max_downloads = int_or_none(self.params.get('max_downloads')) or float('inf')
+        if self._num_downloads >= max_downloads:
+            raise MaxDownloadsReached()
 
         # TODO: backward compatibility, to be removed
         info_dict['fulltitle'] = info_dict['title']
@@ -2059,9 +2058,12 @@ class YoutubeDL(object):
                 try:
                     self.post_process(filename, info_dict)
                 except (PostProcessingError) as err:
-                    self.report_error('postprocessing: %s' % str(err))
+                    self.report_error('postprocessing: %s' % error_to_compat_str(err))
                     return
                 self.record_download_archive(info_dict)
+                # avoid possible nugatory search for further items (PR #26638)
+                if self._num_downloads >= max_downloads:
+                    raise MaxDownloadsReached()
 
     def download(self, url_list):
         """Download a given list of URLs."""
