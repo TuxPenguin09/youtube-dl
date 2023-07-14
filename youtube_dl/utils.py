@@ -47,6 +47,7 @@ from .compat import (
     compat_collections_abc,
     compat_cookiejar,
     compat_ctypes_WINFUNCTYPE,
+    compat_datetime_timedelta_total_seconds,
     compat_etree_fromstring,
     compat_expanduser,
     compat_html_entities,
@@ -56,6 +57,7 @@ from .compat import (
     compat_kwargs,
     compat_os_name,
     compat_re_Match,
+    compat_re_Pattern,
     compat_shlex_quote,
     compat_str,
     compat_struct_pack,
@@ -86,7 +88,7 @@ def register_socks_protocols():
 
 
 # Unfavoured alias
-compiled_regex_type = compat_re_Match
+compiled_regex_type = compat_re_Pattern
 
 
 def random_user_agent():
@@ -3101,7 +3103,7 @@ def unified_timestamp(date_str, day_first=True):
             pass
     timetuple = email.utils.parsedate_tz(date_str)
     if timetuple:
-        return calendar.timegm(timetuple) + pm_delta * 3600 - timezone.total_seconds()
+        return calendar.timegm(timetuple) + pm_delta * 3600 - compat_datetime_timedelta_total_seconds(timezone)
 
 
 def determine_ext(url, default_ext='unknown_video'):
@@ -3189,6 +3191,10 @@ class DateRange(object):
 
     def __str__(self):
         return '%s - %s' % (self.start.isoformat(), self.end.isoformat())
+
+    def __eq__(self, other):
+        return (isinstance(other, DateRange)
+                and self.start == other.start and self.end == other.end)
 
 
 def platform_name():
@@ -3749,6 +3755,11 @@ def strip_or_none(v, default=None):
     return v.strip() if isinstance(v, compat_str) else default
 
 
+def txt_or_none(v, default=None):
+    """ Combine str/strip_or_none, disallow blank value (for traverse_obj) """
+    return default if v is None else (compat_str(v).strip() or default)
+
+
 def url_or_none(url):
     if not url or not isinstance(url, compat_str):
         return None
@@ -4092,8 +4103,8 @@ def escape_url(url):
     ).geturl()
 
 
-def parse_qs(url):
-    return compat_parse_qs(compat_urllib_parse.urlparse(url).query)
+def parse_qs(url, **kwargs):
+    return compat_parse_qs(compat_urllib_parse.urlparse(url).query, **kwargs)
 
 
 def read_batch_urls(batch_fd):
@@ -4213,6 +4224,8 @@ def multipart_encode(data, boundary=None):
 
 
 def variadic(x, allowed_types=(compat_str, bytes, dict)):
+    if not isinstance(allowed_types, tuple) and isinstance(allowed_types, compat_collections_abc.Iterable):
+        allowed_types = tuple(allowed_types)
     return x if isinstance(x, compat_collections_abc.Iterable) and not isinstance(x, allowed_types) else (x,)
 
 

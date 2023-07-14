@@ -1563,6 +1563,7 @@ Line 1
         self.assertEqual(variadic(None), (None, ))
         self.assertEqual(variadic('spam'), ('spam', ))
         self.assertEqual(variadic('spam', allowed_types=dict), 'spam')
+        self.assertEqual(variadic('spam', allowed_types=[dict]), 'spam')
 
     def test_traverse_obj(self):
         _TEST_DATA = {
@@ -1611,7 +1612,7 @@ Line 1
         self.assertEqual(traverse_obj(_TEST_DATA, lambda x, y: x == 'urls' and isinstance(y, list)),
                          [_TEST_DATA['urls']],
                          msg='function as query key should perform a filter based on (key, value)')
-        self.assertCountEqual(traverse_obj(_TEST_DATA, lambda _, x: isinstance(x[0], compat_str)), {'str'},
+        self.assertCountEqual(traverse_obj(_TEST_DATA, lambda _, x: isinstance(x[0], compat_str)), ('str',),
                               msg='exceptions in the query function should be caught')
 
         # Test alternative paths
